@@ -1,3 +1,5 @@
+#!./run.sh /usr/bin/env python3
+
 from const import *
 
 
@@ -16,6 +18,12 @@ class Polyhedron(object):
 
     def copy(self):
         return Polyhedron(self.w, self.x, self.y, self.z)
+
+    def get_colors(self):
+        return [c for c in [self.w, self.x, self.y, self.z] if c is not None]
+
+    def get_missing_colors(self):
+        return list({GREEN, BLUE, YELLOW, ORANGE} - set(self.get_colors()))
 
     def set(self, face, color):
         setattr(self, face, color)
@@ -190,6 +198,35 @@ class Pyraminx(object):
         self.swap((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), direction)
         self.swap((1, 1, 0, 0), (0, 1, 1, 0), (1, 0, 1, 0), direction)
 
+    def process_rotations(self, moves, tips_only=False):
+        for axis, direction in zip(moves[0::2], moves[1::2]):
+            getattr(self, 'rotate_' + axis)(direction, tips_only)
+
+    def process_turns(self, moves):
+        for axis, direction in zip(moves[0::2], moves[1::2]):
+            getattr(self, 'turn_' + axis)(direction)
+
+    def get_tip_alignment(self, axis):
+        axial, tip = self[axial_map[axis][1]], self[axial_map[axis][2]]
+        faces = axial_offset[axis]
+        if getattr(tip, faces[1]) == getattr(axial, faces[0]):
+            return POS
+        if getattr(tip, faces[1]) == getattr(axial, faces[2]):
+            return NEG
+        return None
+
+    def get_transform(self):
+        tip_w = face_color_map[self[(2, 0, 0, 0)].get_missing_colors()[0]]
+        tip_x = face_color_map[self[(0, 2, 0, 0)].get_missing_colors()[0]]
+        return tip_w, tip_x
+
+    def get_tips(self):
+        tip_w = face_color_map[self[(2, 0, 0, 0)].get_missing_colors()[0]]
+        tip_x = face_color_map[self[(0, 2, 0, 0)].get_missing_colors()[0]]
+        tip_y = face_color_map[self[(0, 0, 2, 0)].get_missing_colors()[0]]
+        tip_z = face_color_map[self[(0, 0, 0, 2)].get_missing_colors()[0]]
+        return tip_w, tip_x, tip_y, tip_z
+
     def serialize_state(self):
         ser = ''
         # Centers
@@ -228,11 +265,3 @@ class Pyraminx(object):
         s += '        ' + self[(0, 0, 0, 2)].w
 
         return s
-
-if __name__ == "__main__":
-    p = Pyraminx()
-    p.init_solved_state()
-    print(p)
-
-    p.rotate_z(POS)
-    print(p)
